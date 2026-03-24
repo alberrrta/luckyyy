@@ -74,7 +74,7 @@ canvas{
         <div class="result">
             <div class="reveal-text">
                 🎀 It's a Girl!
-                <span>예쁜 딸입니다</span>
+                <span>딸입니다</span>
             </div>
             <img src="girl.png" class="baby-photo" id="babyPhoto" />
         </div>
@@ -92,13 +92,16 @@ const babyPhoto = document.getElementById("babyPhoto");
 let drawing = false;
 let revealed = false;
 
-function init() {
-    // 1. 카드의 현재 렌더링 크기를 가져옴
+// 부드러운 선을 그리기 위해 이전 좌표를 저장할 변수
+let lastX, lastY;
+
+// 1. 캔버스 초기화 및 리사이징 대응 (기존과 거의 동일)
+function init Canvas() {
     const rect = card.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
 
-    // 2. 디바이스 픽셀 비율 대응 (선명하게 보이도록)
+    // 디바이스 픽셀 비율 대응
     const dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -106,20 +109,26 @@ function init() {
     canvas.style.height = height + "px";
     ctx.scale(dpr, dpr);
 
-    // 3. 덮개 그리기 (회색)
-    ctx.fillStyle = "#CECECE";
+    // 덮개 그리기 (핑크 계열 그라데이션으로 더 예쁘게 바꿨어요)
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, '#ffccdf'); // 연한 핑크
+    gradient.addColorStop(1, '#ffafcc'); // 진한 핑크
+    ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
-    // 4. 안내 텍스트 추가
-    ctx.font = "bold 20px Arial";
-    ctx.fillStyle = "#888888";
+    // 안내 텍스트
+    ctx.font = "bold 20px sans-serif";
+    ctx.fillStyle = "white";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("Scratch Here!", width / 2, height / 2);
+    ctx.fillText("여기를 슥슥 긁어봐요!", width / 2, height / 2);
+    
+    // 중요: 캔버스 초기화 후 드로잉 모드 설정 (긁어내기)
+    ctx.globalCompositeOperation = "destination-out";
 }
 
-// 긁기 동작 함수
-function getPos(e) {
+// 좌표 가져오기 함수
+function getCoords(e) {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -129,26 +138,62 @@ function getPos(e) {
     };
 }
 
-function scratch(e) {
+// 2. 부드러운 긁기 로직 (핵심 수정 부분)
+function scratchMove(e) {
     if (!drawing || revealed) return;
-    const pos = getPos(e);
+    
+    const { x, y } = getCoords(e);
 
-    ctx.globalCompositeOperation = "destination-out";
+    // 그리기 설정
+    ctx.lineWidth = 45; // 펜 굵기 (원하는 대로 조절 가능)
+    ctx.lineCap = "round"; // 선의 끝을 둥글게 (부드러움의 핵심)
+    ctx.lineJoin = "round"; // 선이 꺾이는 부분을 둥글게
+
     ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 25, 0, Math.PI * 2);
-    ctx.fill();
+    // 이전 좌표가 있다면 선으로 연결
+    if (lastX && lastY) {
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    } else {
+        // 첫 번째 점일 때는 원으로 시작 (터치 시작 시)
+        ctx.arc(x, y, 22, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // 현재 좌표를 다음 긁기를 위해 저장
+    lastX = x;
+    lastY = y;
 
-    // 일정량 이상 긁으면 자동 공개 (성능을 위해 10번 중 1번만 체크)
+    // 가끔씩만 체크해서 성능 최적화
     if (Math.random() > 0.9) checkPercent();
 }
 
+// 긁기 시작 (좌표 초기화)
+function scratchStart(e) {
+    drawing = true;
+    const { x, y } = getCoords(e);
+    lastX = x; // 시작 좌표 저장
+    lastY = y;
+    scratchMove(e); // 시작하자마자 점 하나 찍기
+}
+
+// 긁기 종료 (좌표 끊기)
+function scratchEnd() {
+    drawing = false;
+    lastX = null; // 좌표 초기화 (그래야 다음 긁기 때 선이 안 이어짐)
+    lastY = null;
+}
+
+// 퍼센트 체크 및 결과 공개 (기존과 동일)
 function checkPercent() {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     let count = 0;
     for (let i = 3; i < imageData.data.length; i += 4) {
         if (imageData.data[i] === 0) count++;
     }
-    if ((count / (canvas.width * canvas.height)) > 0.4) {
+    // 35% 이상 긁히면 자동 공개
+    if ((count / (canvas.width * canvas.height)) > 0.35) {
         reveal();
     }
 }
@@ -163,31 +208,31 @@ function reveal() {
     babyPhoto.classList.add("show");
     confetti({
         particleCount: 150,
-        spread: 70,
+        spread: 80,
         origin: { y: 0.6 },
-        colors: ['#ff6fae', '#ff99cc', '#ffffff']
+        colors: ['#ff6fae', '#ff99cc', '#ffffff'] // 핑크색 계열
     });
 }
 
-// 마우스 및 터치 이벤트 연결
-canvas.addEventListener("mousedown", () => drawing = true);
-window.addEventListener("mouseup", () => drawing = false);
-canvas.addEventListener("mousemove", scratch);
+// 이벤트 리스너 연결 (수정된 함수명 반영)
+canvas.addEventListener("mousedown", scratchStart);
+window.addEventListener("mouseup", scratchEnd);
+canvas.addEventListener("mousemove", scratchMove);
 
 canvas.addEventListener("touchstart", (e) => {
-    drawing = true;
-    scratch(e);
+    e.preventDefault(); // 스크롤 방지
+    scratchStart(e);
 }, { passive: false });
-canvas.addEventListener("touchend", () => drawing = false);
+canvas.addEventListener("touchend", scratchEnd);
 canvas.addEventListener("touchmove", (e) => {
     e.preventDefault();
-    scratch(e);
+    scratchMove(e);
 }, { passive: false });
 
-// 이미지 로딩까지 기다린 후 실행하거나, 즉시 실행
-window.onload = init;
-// 페이지가 이미 로드된 경우를 대비해 한번 더 실행
-if (document.readyState === 'complete') init();
+// 로딩 완료 후 초기화
+window.addEventListener('load', initCanvas);
+window.addEventListener('resize', initCanvas);
+if (document.readyState === 'complete') initCanvas();
 </script>
 
 </body>
