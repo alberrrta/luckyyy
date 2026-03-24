@@ -5,86 +5,125 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gender Reveal</title>
 
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
 <style>
 
 body{
-    margin:0;
-    height:100vh;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    background:linear-gradient(135deg,#ffd6e7,#ffeaf4);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+margin:0;
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+background:linear-gradient(135deg,#ffd6ec,#ffeaf4);
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+overflow:hidden;
 }
 
 .container{
-    width:420px;
-    height:420px;
-    position:relative;
-    border-radius:30px;
-    overflow:hidden;
-    box-shadow:0 20px 40px rgba(0,0,0,0.15);
-    background:white;
+width:420px;
+height:420px;
+position:relative;
+border-radius:28px;
+overflow:hidden;
+box-shadow:0 25px 50px rgba(0,0,0,0.18);
+background:white;
 }
 
 .reveal{
-    position:absolute;
-    width:100%;
-    height:100%;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
+position:absolute;
+width:100%;
+height:100%;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+z-index:1;
 }
 
 .title{
-    font-size:42px;
-    font-weight:800;
-    color:#ff4fa3;
-    margin-bottom:10px;
+font-size:44px;
+font-weight:800;
+color:#ff4fa3;
+opacity:0;
+transform:scale(.8);
+transition:all .6s ease;
 }
 
 .subtitle{
-    font-size:22px;
-    color:#ff7fbf;
+font-size:20px;
+color:#ff7fbf;
+margin-top:6px;
+opacity:0;
+transition:all .6s ease .2s;
 }
 
 .ultrasound{
-    width:220px;
-    margin-top:20px;
-    border-radius:10px;
+width:230px;
+margin-top:20px;
+border-radius:12px;
+box-shadow:0 12px 30px rgba(0,0,0,.25);
+opacity:0;
+transform:scale(.85);
+transition:all .7s ease .3s;
+}
+
+.show .title{
+opacity:1;
+transform:scale(1);
+}
+
+.show .subtitle{
+opacity:1;
+}
+
+.show .ultrasound{
+opacity:1;
+transform:scale(1);
 }
 
 canvas{
-    position:absolute;
-    top:0;
-    left:0;
-    width:100%;
-    height:100%;
-    touch-action:none; /* 모바일 스크롤 방지 */
+position:absolute;
+top:0;
+left:0;
+width:100%;
+height:100%;
+z-index:2;
+touch-action:none;
 }
 
 .scratchText{
-    position:absolute;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%);
-    font-size:28px;
-    color:white;
-    font-weight:700;
-    pointer-events:none;
-    transition:opacity .3s ease;
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+font-size:30px;
+color:white;
+font-weight:700;
+pointer-events:none;
+z-index:3;
+transition:opacity .4s;
+}
+
+.heart{
+position:fixed;
+font-size:22px;
+animation:float 2s linear forwards;
+}
+
+@keyframes float{
+0%{transform:translateY(0) scale(1);opacity:1;}
+100%{transform:translateY(-200px) scale(1.6);opacity:0;}
 }
 
 </style>
 </head>
 
-
 <body>
 
 <div class="container">
 
-<div class="reveal">
+<div class="reveal" id="reveal">
 
 <div class="title">🎀 It's a Girl!</div>
 <div class="subtitle">딸입니다</div>
@@ -94,6 +133,7 @@ canvas{
 </div>
 
 <canvas id="scratch"></canvas>
+
 <div class="scratchText" id="scratchText">Scratch me</div>
 
 </div>
@@ -101,62 +141,122 @@ canvas{
 
 <script>
 
-const canvas = document.getElementById("scratch");
-const ctx = canvas.getContext("2d");
-const scratchText = document.getElementById("scratchText");
+const canvas=document.getElementById("scratch")
+const ctx=canvas.getContext("2d")
+const scratchText=document.getElementById("scratchText")
+const reveal=document.getElementById("reveal")
 
-canvas.width = canvas.offsetWidth;
-canvas.height = canvas.offsetHeight;
+canvas.width=canvas.offsetWidth
+canvas.height=canvas.offsetHeight
 
-ctx.fillStyle = "#b5b5b5";
-ctx.fillRect(0,0,canvas.width,canvas.height);
+ctx.fillStyle="#b5b5b5"
+ctx.fillRect(0,0,canvas.width,canvas.height)
 
-ctx.globalCompositeOperation = "destination-out";
+ctx.globalCompositeOperation="destination-out"
 
-let isDrawing=false;
-let scratched=false;
+let drawing=false
+let revealed=false
 
-canvas.addEventListener("mousedown",()=>isDrawing=true);
-canvas.addEventListener("mouseup",()=>isDrawing=false);
-canvas.addEventListener("mouseleave",()=>isDrawing=false);
+canvas.addEventListener("mousedown",()=>drawing=true)
+canvas.addEventListener("mouseup",()=>drawing=false)
+canvas.addEventListener("mouseleave",()=>drawing=false)
 
-canvas.addEventListener("mousemove",scratch);
+canvas.addEventListener("mousemove",scratch)
 
 canvas.addEventListener("touchstart",(e)=>{
-    e.preventDefault();
-    isDrawing=true;
-},{passive:false});
+e.preventDefault()
+drawing=true
+},{passive:false})
 
-canvas.addEventListener("touchend",()=>isDrawing=false);
+canvas.addEventListener("touchend",()=>drawing=false)
 
 canvas.addEventListener("touchmove",(e)=>{
-    e.preventDefault();
-    scratch(e);
-},{passive:false});
+e.preventDefault()
+scratch(e)
+},{passive:false})
 
 function scratch(e){
 
-if(!isDrawing) return;
+if(!drawing) return
 
-let rect=canvas.getBoundingClientRect();
-let x,y;
+let rect=canvas.getBoundingClientRect()
+let x,y
 
 if(e.touches){
-x=e.touches[0].clientX-rect.left;
-y=e.touches[0].clientY-rect.top;
+x=e.touches[0].clientX-rect.left
+y=e.touches[0].clientY-rect.top
 }else{
-x=e.clientX-rect.left;
-y=e.clientY-rect.top;
+x=e.clientX-rect.left
+y=e.clientY-rect.top
 }
 
-ctx.beginPath();
-ctx.arc(x,y,25,0,Math.PI*2);
-ctx.fill();
+ctx.beginPath()
+ctx.arc(x,y,28,0,Math.PI*2)
+ctx.fill()
 
-// 처음 긁을 때 텍스트 숨기기
-if(!scratched){
-    scratched=true;
-    scratchText.style.opacity = 0;
+scratchText.style.opacity=0
+
+checkReveal()
+}
+
+function checkReveal(){
+
+if(revealed) return
+
+let pixels=ctx.getImageData(0,0,canvas.width,canvas.height)
+let transparent=0
+
+for(let i=3;i<pixels.data.length;i+=4){
+if(pixels.data[i]===0) transparent++
+}
+
+let percent=transparent/(canvas.width*canvas.height)*100
+
+if(percent>60){
+revealGender()
+}
+}
+
+function revealGender(){
+
+revealed=true
+
+canvas.style.transition="opacity .6s"
+canvas.style.opacity=0
+
+reveal.classList.add("show")
+
+confetti({
+particleCount:200,
+spread:120,
+origin:{y:0.6},
+colors:["#ff6fae","#ff99cc","#ffc1de"]
+})
+
+spawnHearts()
+}
+
+function spawnHearts(){
+
+for(let i=0;i<20;i++){
+
+setTimeout(()=>{
+
+let heart=document.createElement("div")
+heart.className="heart"
+heart.innerHTML="💖"
+
+heart.style.left=Math.random()*window.innerWidth+"px"
+heart.style.bottom="0px"
+
+document.body.appendChild(heart)
+
+setTimeout(()=>{
+heart.remove()
+},2000)
+
+},i*80)
+
 }
 
 }
