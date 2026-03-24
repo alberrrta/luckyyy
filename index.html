@@ -91,17 +91,13 @@ const babyPhoto = document.getElementById("babyPhoto");
 
 let drawing = false;
 let revealed = false;
+let lastX, lastY; // 하트를 부드럽게 잇기 위한 이전 좌표
 
-// 부드러운 선을 그리기 위해 이전 좌표를 저장할 변수
-let lastX, lastY;
-
-// 1. 캔버스 초기화 및 리사이징 대응 (기존과 거의 동일)
-function init Canvas() {
+function init() {
     const rect = card.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
 
-    // 디바이스 픽셀 비율 대응
     const dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -109,93 +105,68 @@ function init Canvas() {
     canvas.style.height = height + "px";
     ctx.scale(dpr, dpr);
 
-    // 덮개 그리기 (핑크 계열 그라데이션으로 더 예쁘게 바꿨어요)
+    // 덮개 그리기 (핑크빛이 살짝 도는 은색으로 변경)
     const gradient = ctx.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, '#ffccdf'); // 연한 핑크
-    gradient.addColorStop(1, '#ffafcc'); // 진한 핑크
+    gradient.addColorStop(0, '#e0e0e0');
+    gradient.addColorStop(1, '#ffcad4'); 
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
-    // 안내 텍스트
-    ctx.font = "bold 20px sans-serif";
-    ctx.fillStyle = "white";
+    ctx.font = "bold 20px Arial";
+    ctx.fillStyle = "#ff6fae";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("여기를 슥슥 긁어봐요!", width / 2, height / 2);
-    
-    // 중요: 캔버스 초기화 후 드로잉 모드 설정 (긁어내기)
-    ctx.globalCompositeOperation = "destination-out";
+    ctx.fillText("하트로 슥슥 긁어보세요! ❤️", width / 2, height / 2);
 }
 
-// 좌표 가져오기 함수
-function getCoords(e) {
+// 하트 모양을 그리는 핵심 함수
+function drawHeart(x, y, size) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + size / 4);
+    ctx.bezierCurveTo(x, y, x - size / 2, y, x - size / 2, y + size / 4);
+    ctx.bezierCurveTo(x - size / 2, y + size / 2, x, y + size * 0.75, x, y + size);
+    ctx.bezierCurveTo(x, y + size * 0.75, x + size / 2, y + size / 2, x + size / 2, y + size / 4);
+    ctx.bezierCurveTo(x + size / 2, y, x, y, x, y + size / 4);
+    ctx.fill();
+}
+
+function getPos(e) {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return {
-        x: clientX - rect.left,
-        y: clientY - rect.top
-    };
+    return { x: clientX - rect.left, y: clientY - rect.top };
 }
 
-// 2. 부드러운 긁기 로직 (핵심 수정 부분)
-function scratchMove(e) {
+function scratch(e) {
     if (!drawing || revealed) return;
+    const pos = getPos(e);
+
+    ctx.globalCompositeOperation = "destination-out";
     
-    const { x, y } = getCoords(e);
+    // 점과 점 사이를 하트로 채워 부드럽게 표현
+    const distance = lastX ? Math.hypot(pos.x - lastX, pos.y - lastY) : 0;
+    const steps = Math.max(Math.floor(distance / 5), 1); // 5픽셀 간격으로 하트 생성
 
-    // 그리기 설정
-    ctx.lineWidth = 45; // 펜 굵기 (원하는 대로 조절 가능)
-    ctx.lineCap = "round"; // 선의 끝을 둥글게 (부드러움의 핵심)
-    ctx.lineJoin = "round"; // 선이 꺾이는 부분을 둥글게
-
-    ctx.beginPath();
-    // 이전 좌표가 있다면 선으로 연결
-    if (lastX && lastY) {
-        ctx.moveTo(lastX, lastY);
-        ctx.lineTo(x, y);
-        ctx.stroke();
-    } else {
-        // 첫 번째 점일 때는 원으로 시작 (터치 시작 시)
-        ctx.arc(x, y, 22, 0, Math.PI * 2);
-        ctx.fill();
+    for (let i = 0; i < steps; i++) {
+        const lerpX = lastX + (pos.x - lastX) * (i / steps);
+        const lerpY = lastY + (pos.y - lastY) * (i / steps);
+        // 하트 크기를 30정도로 설정 (살짝 위로 치우쳐 그려지므로 보정)
+        drawHeart(lerpX, lerpY - 15, 35); 
     }
-    
-    // 현재 좌표를 다음 긁기를 위해 저장
-    lastX = x;
-    lastY = y;
 
-    // 가끔씩만 체크해서 성능 최적화
+    lastX = pos.x;
+    lastY = pos.y;
+
     if (Math.random() > 0.9) checkPercent();
 }
 
-// 긁기 시작 (좌표 초기화)
-function scratchStart(e) {
-    drawing = true;
-    const { x, y } = getCoords(e);
-    lastX = x; // 시작 좌표 저장
-    lastY = y;
-    scratchMove(e); // 시작하자마자 점 하나 찍기
-}
-
-// 긁기 종료 (좌표 끊기)
-function scratchEnd() {
-    drawing = false;
-    lastX = null; // 좌표 초기화 (그래야 다음 긁기 때 선이 안 이어짐)
-    lastY = null;
-}
-
-// 퍼센트 체크 및 결과 공개 (기존과 동일)
 function checkPercent() {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     let count = 0;
     for (let i = 3; i < imageData.data.length; i += 4) {
         if (imageData.data[i] === 0) count++;
     }
-    // 35% 이상 긁히면 자동 공개
-    if ((count / (canvas.width * canvas.height)) > 0.35) {
-        reveal();
-    }
+    if ((count / (canvas.width * canvas.height)) > 0.4) reveal();
 }
 
 function reveal() {
@@ -208,31 +179,38 @@ function reveal() {
     babyPhoto.classList.add("show");
     confetti({
         particleCount: 150,
-        spread: 80,
+        spread: 70,
         origin: { y: 0.6 },
-        colors: ['#ff6fae', '#ff99cc', '#ffffff'] // 핑크색 계열
+        colors: ['#ff6fae', '#ff99cc', '#ffffff']
     });
 }
 
-// 이벤트 리스너 연결 (수정된 함수명 반영)
-canvas.addEventListener("mousedown", scratchStart);
-window.addEventListener("mouseup", scratchEnd);
-canvas.addEventListener("mousemove", scratchMove);
+// 이벤트 연결
+canvas.addEventListener("mousedown", (e) => {
+    drawing = true;
+    const pos = getPos(e);
+    lastX = pos.x;
+    lastY = pos.y;
+    scratch(e);
+});
+window.addEventListener("mouseup", () => { drawing = false; lastX = null; lastY = null; });
+canvas.addEventListener("mousemove", scratch);
 
 canvas.addEventListener("touchstart", (e) => {
-    e.preventDefault(); // 스크롤 방지
-    scratchStart(e);
+    drawing = true;
+    const pos = getPos(e);
+    lastX = pos.x;
+    lastY = pos.y;
+    scratch(e);
 }, { passive: false });
-canvas.addEventListener("touchend", scratchEnd);
+canvas.addEventListener("touchend", () => { drawing = false; lastX = null; lastY = null; });
 canvas.addEventListener("touchmove", (e) => {
     e.preventDefault();
-    scratchMove(e);
+    scratch(e);
 }, { passive: false });
 
-// 로딩 완료 후 초기화
-window.addEventListener('load', initCanvas);
-window.addEventListener('resize', initCanvas);
-if (document.readyState === 'complete') initCanvas();
+window.onload = init;
+if (document.readyState === 'complete') init();
 </script>
 
 </body>
