@@ -25,10 +25,9 @@ body{
 .wrapper{ text-align:center; width: 100%; padding: 20px; }
 .title{ font-size: 26px; margin-bottom: 20px; color: #ff3f9f; font-weight: 700; }
 
-/* 카드의 높이를 명시적으로 지정하여 캔버스가 길을 잃지 않게 합니다 */
 .card{
     position: relative;
-    width: 320px; /* 모바일 안정성을 위해 가로폭 살짝 조정 */
+    width: 320px; 
     height: 320px;
     margin: 0 auto;
     border-radius: 16px;
@@ -47,17 +46,34 @@ body{
     justify-content: center;
     z-index: 1;
 }
-.reveal-text{ font-size: 28px; font-weight: 700; color: #ff3f9f; text-align: center; }
+
+/* 문구도 처음에는 안 보이게 설정 */
+.reveal-text{ 
+    font-size: 28px; 
+    font-weight: 700; 
+    color: #ff3f9f; 
+    text-align: center;
+    opacity: 0; 
+    transform: translateY(-10px);
+    transition: all 0.8s ease; 
+}
+
 .reveal-text span{ font-size: 16px; display: block; margin-top: 4px; }
+
 .baby-photo{
     margin-top: 15px;
     width: 220px;
     border-radius: 12px;
     opacity: 0;
     transform: scale(0.9);
-    transition: all 0.8s ease;
+    transition: all 0.8s ease 0.2s; /* 텍스트보다 0.2초 늦게 등장 */
 }
-.baby-photo.show{ opacity: 1; transform: scale(1); }
+
+/* show 클래스가 붙으면 문구와 사진이 나타남 */
+.reveal-text.show, .baby-photo.show {
+    opacity: 1;
+    transform: translate(0) scale(1);
+}
 
 canvas{
     position: absolute;
@@ -75,9 +91,9 @@ canvas{
     <div class="title">Scratch to Reveal 👶</div>
     <div class="card" id="card">
         <div class="result">
-            <div class="reveal-text">
+            <div class="reveal-text" id="revealText">
                 🎀 It's a Girl!
-                <span>딸입니다</span>
+                <span>딸엄마 당첨</span>
             </div>
             <img src="girl.png" class="baby-photo" id="babyPhoto" />
         </div>
@@ -91,10 +107,11 @@ const canvas = document.getElementById("scratch");
 const ctx = canvas.getContext("2d", { willReadFrequently: true });
 const card = document.getElementById("card");
 const babyPhoto = document.getElementById("babyPhoto");
+const revealText = document.getElementById("revealText");
 
 let drawing = false;
 let revealed = false;
-let lastX, lastY; // 하트를 부드럽게 잇기 위한 이전 좌표
+let lastX, lastY;
 
 function init() {
     const rect = card.getBoundingClientRect();
@@ -108,7 +125,6 @@ function init() {
     canvas.style.height = height + "px";
     ctx.scale(dpr, dpr);
 
-    // 덮개 그리기 (핑크빛이 살짝 도는 은색으로 변경)
     ctx.fillStyle = "#CECECE";
     ctx.fillRect(0, 0, width, height);
 
@@ -119,22 +135,11 @@ function init() {
     ctx.fillText("Scratch Here!", width / 2, height / 2);
 }
 
-// 하트 모양을 그리는 핵심 함수
-// 🩷 이모지처럼 가장 통통하고 동글동글한 하트를 그리는 함수
 function drawHeart(x, y, size) {
     ctx.beginPath();
-    
-    // 시작점: 하트의 위쪽 중앙 V자 부분 (살짝 아래로 내림)
     ctx.moveTo(x, y + size * 0.2);
-    
-    // 왼쪽 볼 (통통함을 극대화하기 위해 제어점을 멀리 잡음)
-    // bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y)
-    // cp1: 위로 확 퍼지는 곡선, cp2: 옆으로 둥글게 퍼지는 곡선
     ctx.bezierCurveTo(x - size * 0.3, y - size * 0.2, x - size * 1.0, y + size * 0.15, x, y + size * 0.95);
-    
-    // 오른쪽 볼 (왼쪽과 대칭되게)
     ctx.bezierCurveTo(x + size * 1.0, y + size * 0.15, x + size * 0.3, y - size * 0.2, x, y + size * 0.2);
-    
     ctx.fill();
 }
 
@@ -151,14 +156,12 @@ function scratch(e) {
 
     ctx.globalCompositeOperation = "destination-out";
     
-    // 점과 점 사이를 하트로 채워 부드럽게 표현
     const distance = lastX ? Math.hypot(pos.x - lastX, pos.y - lastY) : 0;
-    const steps = Math.max(Math.floor(distance / 5), 1); // 5픽셀 간격으로 하트 생성
+    const steps = Math.max(Math.floor(distance / 5), 1);
 
     for (let i = 0; i < steps; i++) {
         const lerpX = lastX + (pos.x - lastX) * (i / steps);
         const lerpY = lastY + (pos.y - lastY) * (i / steps);
-        // 하트 크기를 30정도로 설정 (살짝 위로 치우쳐 그려지므로 보정)
         drawHeart(lerpX, lerpY - 15, 35); 
     }
 
@@ -184,7 +187,10 @@ function reveal() {
     canvas.style.opacity = "0";
     setTimeout(() => canvas.style.display = "none", 800);
     
+    // 문구와 사진에 동시에 show 클래스 추가
+    revealText.classList.add("show");
     babyPhoto.classList.add("show");
+
     confetti({
         particleCount: 150,
         spread: 70,
@@ -193,7 +199,6 @@ function reveal() {
     });
 }
 
-// 이벤트 연결
 canvas.addEventListener("mousedown", (e) => {
     drawing = true;
     const pos = getPos(e);
