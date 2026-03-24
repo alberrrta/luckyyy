@@ -9,7 +9,6 @@
 
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-
 body{
     height:100vh;
     background:linear-gradient(135deg,#ffd6ec,#ffeef7);
@@ -17,27 +16,16 @@ body{
     align-items:center;
     justify-content:center;
     font-family:'Poppins', sans-serif;
-    overflow: hidden; /* 스크롤 방지 */
-    touch-action: none; /* 브라우저 기본 제스처 방지 */
+    overflow: hidden;
+    touch-action: none;
 }
+.wrapper{ text-align:center; width: 100%; padding: 20px; }
+.title{ font-size: 26px; margin-bottom: 20px; color: #ff3f9f; font-weight: 700; }
 
-.wrapper{
-    text-align:center;
-    width: 100%;
-    padding: 20px;
-}
-
-.title{
-    font-size: clamp(20px, 5vw, 28px);
-    margin-bottom: 20px;
-    color: #ff3f9f;
-    font-weight: 700;
-}
-
+/* 카드의 높이를 명시적으로 지정하여 캔버스가 길을 잃지 않게 합니다 */
 .card{
     position: relative;
-    width: 420px;
-    max-width: 100%;
+    width: 320px; /* 모바일 안정성을 위해 가로폭 살짝 조정 */
     height: 320px;
     margin: 0 auto;
     border-radius: 16px;
@@ -45,9 +33,9 @@ body{
     box-shadow: 0 20px 40px rgba(0,0,0,0.15);
     background: white;
 }
-
 .result{
     position: absolute;
+    top:0; left:0;
     width: 100%;
     height: 100%;
     display: flex;
@@ -56,63 +44,151 @@ body{
     justify-content: center;
     z-index: 1;
 }
-
-.reveal-text{
-    font-size: 30px;
-    font-weight: 700;
-    color: #ff3f9f;
-}
-
-.reveal-text span{
-    font-size: 16px;
-    display: block;
-    margin-top: 4px;
-}
-
+.reveal-text{ font-size: 28px; font-weight: 700; color: #ff3f9f; text-align: center; }
+.reveal-text span{ font-size: 16px; display: block; margin-top: 4px; }
 .baby-photo{
-    margin-top: 14px;
-    width: 240px;
+    margin-top: 15px;
+    width: 220px;
     border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
     opacity: 0;
     transform: scale(0.9);
-    transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: all 0.8s ease;
 }
-
-.baby-photo.show{
-    opacity: 1;
-    transform: scale(1);
-}
+.baby-photo.show{ opacity: 1; transform: scale(1); }
 
 canvas{
     position: absolute;
     top: 0;
     left: 0;
     z-index: 2;
-    cursor: crosshair;
     touch-action: none;
-    transition: opacity 0.6s ease;
 }
-
-.hint{
-    margin-top: 20px;
-    font-size: 14px;
-    color: #ff7fbf;
-    font-weight: 500;
-}
-
-.footer{
-    margin-top: 10px;
-    font-size: 12px;
-    color: #aaa;
-}
+.hint{ margin-top: 20px; font-size: 14px; color: #ff7fbf; }
 </style>
 </head>
 <body>
 
 <div class="wrapper">
     <div class="title">Scratch to Reveal 👶</div>
-
     <div class="card" id="card">
         <div class="result">
-            <div class
+            <div class="reveal-text">
+                🎀 It's a Girl!
+                <span>예쁜 딸입니다</span>
+            </div>
+            <img src="girl.png" class="baby-photo" id="babyPhoto" />
+        </div>
+        <canvas id="scratch"></canvas>
+    </div>
+    <div class="hint">손가락으로 슥슥 긁어보세요 ✨</div>
+</div>
+
+<script>
+const canvas = document.getElementById("scratch");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+const card = document.getElementById("card");
+const babyPhoto = document.getElementById("babyPhoto");
+
+let drawing = false;
+let revealed = false;
+
+function init() {
+    // 1. 카드의 현재 렌더링 크기를 가져옴
+    const rect = card.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    // 2. 디바이스 픽셀 비율 대응 (선명하게 보이도록)
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+    ctx.scale(dpr, dpr);
+
+    // 3. 덮개 그리기 (회색)
+    ctx.fillStyle = "#CECECE";
+    ctx.fillRect(0, 0, width, height);
+
+    // 4. 안내 텍스트 추가
+    ctx.font = "bold 20px Arial";
+    ctx.fillStyle = "#888888";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Scratch Here!", width / 2, height / 2);
+}
+
+// 긁기 동작 함수
+function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
+
+function scratch(e) {
+    if (!drawing || revealed) return;
+    const pos = getPos(e);
+
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 25, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 일정량 이상 긁으면 자동 공개 (성능을 위해 10번 중 1번만 체크)
+    if (Math.random() > 0.9) checkPercent();
+}
+
+function checkPercent() {
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let count = 0;
+    for (let i = 3; i < imageData.data.length; i += 4) {
+        if (imageData.data[i] === 0) count++;
+    }
+    if ((count / (canvas.width * canvas.height)) > 0.4) {
+        reveal();
+    }
+}
+
+function reveal() {
+    if (revealed) return;
+    revealed = true;
+    canvas.style.transition = "opacity 0.8s";
+    canvas.style.opacity = "0";
+    setTimeout(() => canvas.style.display = "none", 800);
+    
+    babyPhoto.classList.add("show");
+    confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#ff6fae', '#ff99cc', '#ffffff']
+    });
+}
+
+// 마우스 및 터치 이벤트 연결
+canvas.addEventListener("mousedown", () => drawing = true);
+window.addEventListener("mouseup", () => drawing = false);
+canvas.addEventListener("mousemove", scratch);
+
+canvas.addEventListener("touchstart", (e) => {
+    drawing = true;
+    scratch(e);
+}, { passive: false });
+canvas.addEventListener("touchend", () => drawing = false);
+canvas.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    scratch(e);
+}, { passive: false });
+
+// 이미지 로딩까지 기다린 후 실행하거나, 즉시 실행
+window.onload = init;
+// 페이지가 이미 로드된 경우를 대비해 한번 더 실행
+if (document.readyState === 'complete') init();
+</script>
+
+</body>
+</html>
