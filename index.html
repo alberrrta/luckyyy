@@ -117,14 +117,20 @@ function init() {
 }
 
 // 하트 모양을 그리는 핵심 함수
+// 🩷 이모지처럼 가장 통통하고 동글동글한 하트를 그리는 함수
 function drawHeart(x, y, size) {
     ctx.beginPath();
-    // 시작점 (하트의 위쪽 중앙 V자 부분)
-    ctx.moveTo(x, y + size * 0.3);
-    // 왼쪽 볼 (더 높고 넓게 곡선 처리)
-    ctx.bezierCurveTo(x - size * 0.4, y - size * 0.1, x - size * 0.9, y + size * 0.2, x, y + size);
-    // 오른쪽 볼 (대칭되게 곡선 처리)
-    ctx.bezierCurveTo(x + size * 0.9, y + size * 0.2, x + size * 0.4, y - size * 0.1, x, y + size * 0.3);
+    
+    // 시작점: 하트의 위쪽 중앙 V자 부분 (살짝 아래로 내림)
+    ctx.moveTo(x, y + size * 0.2);
+    
+    // 왼쪽 볼 (통통함을 극대화하기 위해 제어점을 멀리 잡음)
+    // bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y)
+    // cp1: 위로 확 퍼지는 곡선, cp2: 옆으로 둥글게 퍼지는 곡선
+    ctx.bezierCurveTo(x - size * 0.3, y - size * 0.2, x - size * 1.0, y + size * 0.15, x, y + size * 0.95);
+    
+    // 오른쪽 볼 (왼쪽과 대칭되게)
+    ctx.bezierCurveTo(x + size * 1.0, y + size * 0.15, x + size * 0.3, y - size * 0.2, x, y + size * 0.2);
     
     ctx.fill();
 }
