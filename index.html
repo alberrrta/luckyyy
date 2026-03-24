@@ -106,27 +106,26 @@ function init() {
     ctx.scale(dpr, dpr);
 
     // 덮개 그리기 (핑크빛이 살짝 도는 은색으로 변경)
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, '#e0e0e0');
-    gradient.addColorStop(1, '#ffcad4'); 
-    ctx.fillStyle = gradient;
+    ctx.fillStyle = "#CECECE";
     ctx.fillRect(0, 0, width, height);
 
     ctx.font = "bold 20px Arial";
     ctx.fillStyle = "#ff6fae";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("하트로 슥슥 긁어보세요! ❤️", width / 2, height / 2);
+    ctx.fillText("Scratch Here!", width / 2, height / 2);
 }
 
 // 하트 모양을 그리는 핵심 함수
 function drawHeart(x, y, size) {
     ctx.beginPath();
-    ctx.moveTo(x, y + size / 4);
-    ctx.bezierCurveTo(x, y, x - size / 2, y, x - size / 2, y + size / 4);
-    ctx.bezierCurveTo(x - size / 2, y + size / 2, x, y + size * 0.75, x, y + size);
-    ctx.bezierCurveTo(x, y + size * 0.75, x + size / 2, y + size / 2, x + size / 2, y + size / 4);
-    ctx.bezierCurveTo(x + size / 2, y, x, y, x, y + size / 4);
+    // 시작점 (하트의 위쪽 중앙 V자 부분)
+    ctx.moveTo(x, y + size * 0.3);
+    // 왼쪽 볼 (더 높고 넓게 곡선 처리)
+    ctx.bezierCurveTo(x - size * 0.4, y - size * 0.1, x - size * 0.9, y + size * 0.2, x, y + size);
+    // 오른쪽 볼 (대칭되게 곡선 처리)
+    ctx.bezierCurveTo(x + size * 0.9, y + size * 0.2, x + size * 0.4, y - size * 0.1, x, y + size * 0.3);
+    
     ctx.fill();
 }
 
